@@ -22,7 +22,8 @@
                 android:layout_height="136dp"
                 app:layout_scrollFlags="scroll|exitUntilCollapsed"
                 android:fitsSystemWindows="true"
-                app:contentScrim="?colorPrimary">
+                app:contentScrim="?colorPrimary"
+                android:elevation="4dp">
 
             <android.support.v7.widget.Toolbar
                     android:id="@+id/toolbar"
