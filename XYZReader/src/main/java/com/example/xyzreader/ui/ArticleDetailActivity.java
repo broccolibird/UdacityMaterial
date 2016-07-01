@@ -38,6 +38,8 @@ import com.example.xyzreader.data.ItemsContract;
 public class ArticleDetailActivity extends AppCompatActivity
         implements LoaderManager.LoaderCallbacks<Cursor> {
 
+    private static final String TAG = "ArticleDetailActivity";
+
     private Cursor mCursor;
 
     private long mStartId;
@@ -122,7 +124,8 @@ public class ArticleDetailActivity extends AppCompatActivity
     @Override
     public void onLoadFinished(Loader<Cursor> cursorLoader, Cursor cursor) {
         mCursor = cursor;
-        mPagerAdapter.notifyDataSetChanged();
+
+        int position = -1;
 
         // Select the start ID
         if (mStartId > 0) {
@@ -132,13 +135,17 @@ public class ArticleDetailActivity extends AppCompatActivity
                 articleId = mCursor.getLong(ArticleLoader.Query._ID);
                 Log.d("ArticleId", "onLoadFinished: " + articleId + " = " + mStartId);
                 if (articleId == mStartId) {
-                    final int position = mCursor.getPosition();
-                    mPager.setCurrentItem(position, false);
+                    position = mCursor.getPosition();
                     bindViews();
                     break;
                 }
             }
             mStartId = 0;
+        }
+
+        mPagerAdapter.notifyDataSetChanged();
+        if (position >= 0) {
+            mPager.setCurrentItem(position, false);
         }
     }
 
