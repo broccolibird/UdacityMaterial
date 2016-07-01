@@ -6,18 +6,28 @@ import android.app.LoaderManager;
 import android.content.Intent;
 import android.content.Loader;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
 import android.support.v13.app.FragmentStatePagerAdapter;
 import android.support.v4.app.ShareCompat;
 import android.support.v4.view.ViewPager;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.graphics.Palette;
 import android.support.v7.widget.Toolbar;
+import android.text.Html;
+import android.text.format.DateUtils;
+import android.text.method.LinkMovementMethod;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.TextView;
 
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.ImageLoader;
 import com.example.xyzreader.R;
 import com.example.xyzreader.data.ArticleLoader;
 import com.example.xyzreader.data.ItemsContract;
@@ -38,6 +48,12 @@ public class ArticleDetailActivity extends AppCompatActivity
 
     private MyPagerAdapter mPagerAdapter;
 
+    private ColorDrawable mStatusBarColorDrawable;
+
+    private FadingImageView mPhotoView;
+
+    private int mMutedColor = 0xFF333333;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -45,10 +61,11 @@ public class ArticleDetailActivity extends AppCompatActivity
 
         getLoaderManager().initLoader(0, null, this);
 
-        // Use toolbar and set up action enabled
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        ActionBar actionBar = getSupportActionBar();
+        actionBar.setDisplayHomeAsUpEnabled(true);
+        actionBar.setTitle(null);
 
         findViewById(R.id.share_fab).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -61,6 +78,9 @@ public class ArticleDetailActivity extends AppCompatActivity
                                 .getIntent(), getString(R.string.action_share)));
             }
         });
+
+        mPhotoView = (FadingImageView) findViewById(R.id.photo);
+        mStatusBarColorDrawable = new ColorDrawable(0);
 
         mPagerAdapter = new MyPagerAdapter(getFragmentManager());
         mPager = (ViewPager) findViewById(R.id.pager);
@@ -80,6 +100,7 @@ public class ArticleDetailActivity extends AppCompatActivity
             public void onPageSelected(int position) {
                 if (mCursor != null) {
                     mCursor.moveToPosition(position);
+                    bindViews();
                 }
                 mSelectedItemId = mCursor.getLong(ArticleLoader.Query._ID);
             }
@@ -106,10 +127,14 @@ public class ArticleDetailActivity extends AppCompatActivity
         // Select the start ID
         if (mStartId > 0) {
             // TODO: optimize
+            long articleId;
             while (mCursor.moveToNext()) {
-                if (mCursor.getLong(ArticleLoader.Query._ID) == mStartId) {
+                articleId = mCursor.getLong(ArticleLoader.Query._ID);
+                Log.d("ArticleId", "onLoadFinished: " + articleId + " = " + mStartId);
+                if (articleId == mStartId) {
                     final int position = mCursor.getPosition();
                     mPager.setCurrentItem(position, false);
+                    bindViews();
                     break;
                 }
             }
@@ -144,6 +169,50 @@ public class ArticleDetailActivity extends AppCompatActivity
         @Override
         public int getCount() {
             return (mCursor != null) ? mCursor.getCount() : 0;
+        }
+    }
+
+
+    private void bindViews() {
+
+        TextView titleView = (TextView) findViewById(R.id.article_title);
+        TextView bylineView = (TextView) findViewById(R.id.article_byline);
+        bylineView.setMovementMethod(new LinkMovementMethod());
+
+        if (mCursor != null) {
+            titleView.setText(mCursor.getString(ArticleLoader.Query.TITLE));
+            bylineView.setText(Html.fromHtml(
+                    DateUtils.getRelativeTimeSpanString(
+                            mCursor.getLong(ArticleLoader.Query.PUBLISHED_DATE),
+                            System.currentTimeMillis(), DateUtils.HOUR_IN_MILLIS,
+                            DateUtils.FORMAT_ABBREV_ALL).toString()
+                            + " by <font color='#ffffff'>"
+                            + mCursor.getString(ArticleLoader.Query.AUTHOR)
+                            + "</font>"));
+            ImageLoaderHelper.getInstance(this).getImageLoader()
+                    .get(mCursor.getString(ArticleLoader.Query.PHOTO_URL),
+                            new ImageLoader.ImageListener() {
+                                @Override
+                                public void onResponse(ImageLoader.ImageContainer imageContainer,
+                                        boolean b) {
+                                    Bitmap bitmap = imageContainer.getBitmap();
+                                    if (bitmap != null) {
+                                        Palette p = Palette.generate(bitmap, 12);
+                                        mMutedColor = p.getDarkMutedColor(0xFF333333);
+                                        mPhotoView.setImageBitmap(imageContainer.getBitmap());
+                                        findViewById(R.id.meta_bar)
+                                                .setBackgroundColor(mMutedColor);
+                                    }
+                                }
+
+                                @Override
+                                public void onErrorResponse(VolleyError volleyError) {
+
+                                }
+                            });
+        } else {
+            titleView.setText("N/A");
+            bylineView.setText("N/A");
         }
     }
 }
